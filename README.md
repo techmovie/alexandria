@@ -7,7 +7,7 @@ been already.
 ## Installation
 
 ```
-# apt-get install mktorrent poppler-utils djvulibre-bin calibre
+# apt-get install transmission-cli poppler-utils djvulibre-bin calibre
 $ pip install -r requirements.txt
 ```
 

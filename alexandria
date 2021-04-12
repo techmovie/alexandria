@@ -123,6 +123,7 @@ class Tracker(object):
         self.session.verify = True  # False for self-signed SSL certificates
         self.login(username, password)
 
+
 class Bibliotik(Tracker):
     name = "Bibliotik"
     formats = {
@@ -237,6 +238,7 @@ class RED(Tracker):
         r = self.session.get('https://redacted.ch/torrents.php', params=params)
         return 'Your search did not match anything.' not in r.text
 
+
 class HTML2BBCode(HTMLParser):
     def handle_starttag(self, tag, attrs):
         if tag == 'li':
@@ -284,6 +286,7 @@ class HTML2BBCode(HTMLParser):
         HTMLParser.feed(self, data)
         return u''.join(self.data)
 
+
 def locate(root, match_function):
     for path, dirs, files in os.walk(root):
         for filename in filter(match_function, (os.path.abspath(os.path.join(path, filename)) for filename in files)):
@@ -314,12 +317,13 @@ def create_tempfile(suffix):
 
 def make_torrent(filename, announce, tracker_name, piece_size=16):
     torrent = create_tempfile('.torrent')
+    print(filename)
     if tracker_name == RED.name:
-        command = ['mktorrent', '-p', '-s', tracker_name, '-a',
-                   announce, '-l', str(piece_size), '-o', torrent, filename]
+        command = ['transmission-create', '-p', '-t',
+                   announce, '-s', str(piece_size), '-o', torrent, filename]
     else:  # not sure if biblotik needs/wants the source filled in
-        command = ['mktorrent', '-p', '-a', announce,
-                   '-l', str(piece_size), '-o', torrent, filename]
+        command = ['transmission-create', '-p', '-t', announce,
+                   '-s', str(piece_size), '-o', torrent, filename]
     subprocess.check_output(command, stderr=subprocess.STDOUT)
     return torrent
 
@@ -347,8 +351,9 @@ def html_to_bbcode(html):
 
 def upload_image(filename, config):
     try:
+        print(ptpimg_upload(filename, config.get('ptpimg', 'key')))
         return ptpimg_upload(filename, config.get('ptpimg', 'key'))
-    except:
+    except Exception, error:
         print("ptpimg upload failed! :(")
         return ""
 
@@ -365,7 +370,7 @@ def ptpimg_upload(filename, key):
 def fetch_metadata(isbn, config):
     try:
         cover = create_tempfile('.jpg')
-        command = ['fetch-ebook-metadata', '-i', isbn, '-c', cover]
+        command = ['fetch-ebook-metadata', '-i', isbn]
         output = subprocess.check_output(
             command, stderr=subprocess.PIPE).decode('utf-8')
         # Evil regex to match the output of fetch-ebook-metadata
@@ -385,8 +390,9 @@ def fetch_metadata(isbn, config):
             'description': description,
             'image': image_url,
         }
-    except:
-        return None
+    except Exception, err:
+        print(err)
+
 
 def parse_config(config_path):
     config = ConfigParser.SafeConfigParser()
@@ -497,7 +503,6 @@ def upload(filename, config, trackers):
     if not isbn:
         print("Failed to extract ISBN from:", filename, "\n")
         return
-
     print
     metadata = fetch_metadata(isbn, config)
     if not metadata:
@@ -542,11 +547,11 @@ def main():
 
     trackers = []
     for tracker in [Bibliotik, RED]:
-    username = config.get(tracker.__name__.lower(), 'username')
-    password = config.get(tracker.__name__.lower(), 'password')
-    if username and password:
-        print("Logging into %s...\n" % tracker.name)
-        trackers.append(tracker(username, password))
+        username = config.get(tracker.__name__.lower(), 'username')
+        password = config.get(tracker.__name__.lower(), 'password')
+        if username and password:
+            print("Logging into %s...\n" % tracker.name)
+            trackers.append(tracker(username, password))
 
     books = itertools.chain(*(locate(book_dir, is_book)
                             for book_dir in args.book_dirs))
