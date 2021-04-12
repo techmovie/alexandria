@@ -353,7 +353,6 @@ def upload_image(filename, config):
         print(ptpimg_upload(filename, config.get('ptpimg', 'key')))
         return ptpimg_upload(filename, config.get('ptpimg', 'key'))
     except Exception as error:
-        print(error)
         print("ptpimg upload failed! :(")
         return ""
 
@@ -491,9 +490,6 @@ def rename_ebook(original, output_dir, metadata):
     extension = determine_format(original)
     new_filename = "%s (%s)%s" % (
         metadata['title'], metadata['isbn'], extension)
-    valid_chars = '-_.() abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-    new_filename = os.path.join(output_dir, ''.join(
-        c for c in new_filename if c in valid_chars))
     shutil.copy(original, new_filename)
     return new_filename
 
