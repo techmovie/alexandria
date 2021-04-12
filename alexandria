@@ -311,8 +311,7 @@ def determine_format(filename):
 
 
 def create_tempfile(suffix):
-    print(subprocess.check_output(['mktemp', '-t', suffix]).strip())
-    return subprocess.check_output(['mktemp', '-t', suffix]).strip()
+    return subprocess.check_output(['mktemp','-u', 'mytemp.XXXXXXX']).strip()+suffix
 
 
 def make_torrent(filename, announce, tracker_name, piece_size=16):
@@ -353,7 +352,8 @@ def upload_image(filename, config):
     try:
         print(ptpimg_upload(filename, config.get('ptpimg', 'key')))
         return ptpimg_upload(filename, config.get('ptpimg', 'key'))
-    except Exception, error:
+    except Exception as error:
+        print(error)
         print("ptpimg upload failed! :(")
         return ""
 
@@ -370,7 +370,7 @@ def ptpimg_upload(filename, key):
 def fetch_metadata(isbn, config):
     try:
         cover = create_tempfile('.jpg')
-        command = ['fetch-ebook-metadata', '-i', isbn]
+        command = ['fetch-ebook-metadata', '-i', isbn, '-c',cover]
         output = subprocess.check_output(
             command, stderr=subprocess.PIPE).decode('utf-8')
         # Evil regex to match the output of fetch-ebook-metadata
