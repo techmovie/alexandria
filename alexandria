@@ -31,11 +31,9 @@ import mobi
 HEADERS = {
     'Connection': 'keep-alive',
     'Cache-Control': 'max-age=0',
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_3)'\
-        'AppleWebKit/535.11 (KHTML, like Gecko) Chrome/17.0.963.79'\
-        'Safari/535.11',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9'\
-        ',*/*;q=0.8',
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9'
+    ',*/*;q=0.8',
     'Accept-Encoding': 'gzip,deflate,sdch',
     'Accept-Language': 'en-US,en;q=0.8',
     'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.3'
@@ -114,13 +112,15 @@ TAGS = {
     "women",
 }
 
-ISBN_REGEX = re.compile('(ISBN[-]*(1[03])*[ ]*(: ){0,1})*(([0-9Xx][- ]*){13}|([0-9Xx][- ]*){10})')
+ISBN_REGEX = re.compile(
+    '(ISBN[-]*(1[03])*[ ]*(: ){0,1})*(([0-9Xx][- ]*){13}|([0-9Xx][- ]*){10})')
+
 
 class Tracker(object):
     def __init__(self, username, password):
         self.session = requests.Session()
         self.session.headers.update(HEADERS)
-        self.session.verify = True # False for self-signed SSL certificates
+        self.session.verify = True  # False for self-signed SSL certificates
         self.login(username, password)
 
 class Bibliotik(Tracker):
@@ -148,7 +148,8 @@ class Bibliotik(Tracker):
 
         r = self.session.get('https://bibliotik.me/upload/ebooks')
         doc = lxml.html.fromstring(r.text)
-        self.authkey = doc.xpath('//*[@id="body"]/form/input[2]')[0].attrib['value']
+        self.authkey = doc.xpath(
+            '//*[@id="body"]/form/input[2]')[0].attrib['value']
         self.announce = doc.xpath('//*[@id="body"]/p/input')[0].attrib['value']
         self.name = "Bibliotik"
 
@@ -176,7 +177,8 @@ class Bibliotik(Tracker):
             'DescriptionField': metadata['description'],
         }
 
-        r = self.session.post('https://bibliotik.me/upload/ebooks', files=files, data=data)
+        r = self.session.post(
+            'https://bibliotik.me/upload/ebooks', files=files, data=data)
         return True
 
     def fetch_metadata(self, isbn):
@@ -198,20 +200,24 @@ class Bibliotik(Tracker):
         r = self.session.get('https://bibliotik.me/torrents/', params=params)
         return 'No torrents found.' not in r.text
 
-class PTH(Tracker):
-    name = "PTH"
+
+class RED(Tracker):
+    name = "RED"
 
     def login(self, username, password):
         params = {'username': username, 'password': password}
-        self.session.post('https://passtheheadphones.me/login.php', params)
+        self.session.post('https://redacted.ch/login.php', params)
 
-        r = self.session.get('https://passtheheadphones.me/upload.php')
+        r = self.session.get('https://redacted.ch/upload.php')
         doc = lxml.html.fromstring(r.text)
-        self.authkey = doc.xpath('//*[@id="upload_table"]/div[1]/input[2]')[0].attrib['value']
-        self.announce = doc.xpath('//*[@id="content"]/div[2]/p/input')[0].attrib['value']
+        self.authkey = doc.xpath(
+            '//*[@id="upload_table"]/div[1]/input[2]')[0].attrib['value']
+        self.announce = doc.xpath(
+            '//*[@id="content"]/div[2]/p/input')[0].attrib['value']
 
     def upload(self, filename, torrent, metadata):
-        files = {'file_input': (torrent.decode('utf-8'), open(torrent, 'rb'), "application/x-bittorent")}
+        files = {'file_input': (torrent.decode(
+            'utf-8'), open(torrent, 'rb'), "application/x-bittorent")}
         data = {
             'submit': 'true',
             'auth': self.authkey,
@@ -221,12 +227,14 @@ class PTH(Tracker):
             'image': metadata['image'],
             'desc': metadata['description'],
         }
-        r = self.session.post('https://passtheheadphones.me/upload.php', files=files, data=data)
+
+        r = self.session.post(
+            'https://redacted.ch/upload.php', files=files, data=data)
         return True
 
     def has_book(self, metadata):
         params = {'searchstr': metadata['title'], 'filter_cat[3]': 1}
-        r = self.session.get('https://passtheheadphones.me/torrents.php', params=params)
+        r = self.session.get('https://redacted.ch/torrents.php', params=params)
         return 'Your search did not match anything.' not in r.text
 
 class HTML2BBCode(HTMLParser):
@@ -281,47 +289,61 @@ def locate(root, match_function):
         for filename in filter(match_function, (os.path.abspath(os.path.join(path, filename)) for filename in files)):
             yield filename
 
+
 def is_book(filename):
     return determine_format(filename) is not None
+
 
 def determine_format(filename):
     extension = os.path.splitext(filename)[-1].lower()
     if extension in ['.epub', '.mobi', '.pdf', '.djvu']:
         return extension
 
-    mimetype = subprocess.check_output(['file', '-b', '-i', filename]).split(';')[0]
+    mimetype = subprocess.check_output(
+        ['file', '-b', '-i', filename]).split(';')[0]
     try:
         return MIMETYPES[mimetype]
     except Exception as e:
         return None
 
+
 def create_tempfile(suffix):
-    return subprocess.check_output(['mktemp', '-u', '--suffix', suffix]).strip()
+    print(subprocess.check_output(['mktemp', '-t', suffix]).strip())
+    return subprocess.check_output(['mktemp', '-t', suffix]).strip()
+
 
 def make_torrent(filename, announce, tracker_name, piece_size=16):
     torrent = create_tempfile('.torrent')
-    if tracker_name == PTH.name:
-        command = ['mktorrent', '-p', '-s', tracker_name, '-a', announce, '-l', str(piece_size), '-o', torrent, filename]
-    else: # not sure if biblotik needs/wants the source filled in
-        command = ['mktorrent', '-p', '-a', announce, '-l', str(piece_size), '-o', torrent, filename]
+    if tracker_name == RED.name:
+        command = ['mktorrent', '-p', '-s', tracker_name, '-a',
+                   announce, '-l', str(piece_size), '-o', torrent, filename]
+    else:  # not sure if biblotik needs/wants the source filled in
+        command = ['mktorrent', '-p', '-a', announce,
+                   '-l', str(piece_size), '-o', torrent, filename]
     subprocess.check_output(command, stderr=subprocess.STDOUT)
     return torrent
 
+
 _slugify_strip_re = re.compile(r'[^\w\s-]')
 _slugify_hyphenate_re = re.compile(r'[-\s]+')
+
+
 def tagify(value):
     if not isinstance(value, str):
         value = str(value)
     value = str(_slugify_strip_re.sub('', value).strip().lower())
     return _slugify_hyphenate_re.sub('.', value)
 
+
 def parse_tags(tags):
     tags = [tagify(tag) for tag in tags.split(', ')]
     return ', '.join(tag for tag in tags if tag in TAGS)
 
+
 def html_to_bbcode(html):
     parser = HTML2BBCode()
     return parser.feed(html)
+
 
 def upload_image(filename, config):
     try:
@@ -330,20 +352,25 @@ def upload_image(filename, config):
         print("ptpimg upload failed! :(")
         return ""
 
+
 def ptpimg_upload(filename, key):
     with open(filename, 'rb') as f:
-        files = [ ('file-upload[0]', (filename.decode('utf8'), f, 'image/jpg'))]
+        files = [('file-upload[0]', (filename.decode('utf8'), f, 'image/jpg'))]
         data = {'type': 'uploadv3', 'api_key': key}
-        r = requests.post("https://ptpimg.me/upload.php", data=data, files=files)
+        r = requests.post("https://ptpimg.me/upload.php",
+                          data=data, files=files)
         return "https://ptpimg.me/" + r.json()[0]["code"] + ".jpg"
+
 
 def fetch_metadata(isbn, config):
     try:
         cover = create_tempfile('.jpg')
         command = ['fetch-ebook-metadata', '-i', isbn, '-c', cover]
-        output = subprocess.check_output(command, stderr=subprocess.PIPE).decode('utf-8')
+        output = subprocess.check_output(
+            command, stderr=subprocess.PIPE).decode('utf-8')
         # Evil regex to match the output of fetch-ebook-metadata
-        parsed = re.findall('([^\s]+)\s+?:\s([\s\S]+?)(?=(?:\n[ATPLRPIC])|$)', output)
+        parsed = re.findall(
+            '([^\s]+)\s+?:\s([\s\S]+?)(?=(?:\n[ATPLRPIC])|$)', output)
         result = {re.sub('\W', '', key).lower(): value for key, value in parsed}
         image_url = upload_image(cover, config)
         description = html_to_bbcode(result['comments'])
@@ -379,9 +406,9 @@ def parse_config(config_path):
         config.set('bibliotik', 'username', '')
         config.set('bibliotik', 'password', '')
 
-        config.add_section('pth')
-        config.set('pth', 'username', '')
-        config.set('pth', 'password', '')
+        config.add_section('red')
+        config.set('red', 'username', '')
+        config.set('red', 'password', '')
 
         config.add_section('ptpimg')
         config.set('ptpimg', 'key', '')
@@ -393,6 +420,7 @@ def parse_config(config_path):
         sys.exit(2)
 
     return config
+
 
 def extract_isbn(filename):
     match = isbn(filename)
@@ -422,6 +450,7 @@ def extract_isbn(filename):
 
     return None
 
+
 def isbn(string):
     for match in ISBN_REGEX.finditer(string):
         s = match.group(4).replace(' ', '').replace('-', '')
@@ -429,13 +458,14 @@ def isbn(string):
             return s
     return None
 
+
 def valid_isbn(string):
     chars = list(string)
     last = chars.pop()
 
     if len(chars) == 9:
         # Compute the ISBN-10 check digit
-        val = sum((x + 2) * int(y) for x,y in enumerate(reversed(chars)))
+        val = sum((x + 2) * int(y) for x, y in enumerate(reversed(chars)))
         check = 11 - (val % 11)
         if check == 10:
             check = "X"
@@ -443,20 +473,24 @@ def valid_isbn(string):
             check = "0"
     else:
         # Compute the ISBN-13 check digit
-        val = sum((x % 2 * 2 + 1) * int(y) for x,y in enumerate(chars))
+        val = sum((x % 2 * 2 + 1) * int(y) for x, y in enumerate(chars))
         check = 10 - (val % 10)
         if check == 10:
             check = "0"
 
     return str(check) == last
 
+
 def rename_ebook(original, output_dir, metadata):
     extension = determine_format(original)
-    new_filename = "%s (%s)%s" % (metadata['title'], metadata['isbn'], extension)
+    new_filename = "%s (%s)%s" % (
+        metadata['title'], metadata['isbn'], extension)
     valid_chars = '-_.() abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-    new_filename = os.path.join(output_dir, ''.join(c for c in new_filename if c in valid_chars))
+    new_filename = os.path.join(output_dir, ''.join(
+        c for c in new_filename if c in valid_chars))
     shutil.copy(original, new_filename)
     return new_filename
+
 
 def upload(filename, config, trackers):
     isbn = extract_isbn(filename)
@@ -470,8 +504,10 @@ def upload(filename, config, trackers):
         print("Failed to fetch metadata for %s: %s" % (isbn, filename))
         return
 
-    print("Book found: %s (%s) [%s]" % (metadata['title'], metadata['year'], determine_format(filename)[1:].upper()))
-    ebook = rename_ebook(filename, os.path.expanduser(config.get('global', 'data_dir')), metadata)
+    print("Book found: %s (%s) [%s]" % (
+        metadata['title'], metadata['year'], determine_format(filename)[1:].upper()))
+    ebook = rename_ebook(filename, os.path.expanduser(
+        config.get('global', 'data_dir')), metadata)
 
     for i, tracker in enumerate(trackers):
         if tracker.has_book(metadata):
@@ -482,35 +518,42 @@ def upload(filename, config, trackers):
 
         # create each tracker's torrent with a different piece size so
         # that the torrents each have different info hashes (otherwise only one will seed in rtorrent)
-        torrent = make_torrent(ebook, tracker.announce, tracker.name, piece_size=15+i)
+        torrent = make_torrent(ebook, tracker.announce,
+                               tracker.name, piece_size=15+i)
 
         if not tracker.upload(ebook, torrent, metadata):
             print("failed!")
             continue
 
-        shutil.copy(torrent.decode('utf-8'), os.path.expanduser(config.get('global', 'torrent_dir')))
+        shutil.copy(torrent.decode('utf-8'),
+                    os.path.expanduser(config.get('global', 'torrent_dir')))
         print("done!")
+
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('book_dirs', nargs='+', help='paths to directories containing books')
-    parser.add_argument('--config', help='the location of the configuration file', \
-            default=os.path.expanduser('~/.alexandria/config'))
+    parser.add_argument('book_dirs', nargs='+',
+                        help='paths to directories containing books')
+    parser.add_argument('--config', help='the location of the configuration file',
+                        default=os.path.expanduser('~/.alexandria/config'))
 
     args = parser.parse_args()
     config = parse_config(args.config)
 
     trackers = []
-    for tracker in [Bibliotik, PTH]:
-        username = config.get(tracker.__name__.lower(), 'username')
-        password = config.get(tracker.__name__.lower(), 'password')
-        if username and password:
-            print("Logging into %s...\n" % tracker.name)
-            trackers.append(tracker(username, password))
+    for tracker in [Bibliotik, RED]:
+    username = config.get(tracker.__name__.lower(), 'username')
+    password = config.get(tracker.__name__.lower(), 'password')
+    if username and password:
+        print("Logging into %s...\n" % tracker.name)
+        trackers.append(tracker(username, password))
 
-    books = itertools.chain(*(locate(book_dir, is_book) for book_dir in args.book_dirs))
+    books = itertools.chain(*(locate(book_dir, is_book)
+                            for book_dir in args.book_dirs))
 
     for filename in books:
         upload(filename, config, trackers)
 
-if __name__ == '__main__': main()
+
+if __name__ == '__main__':
+    main()
