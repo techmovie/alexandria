@@ -492,8 +492,10 @@ def rename_ebook(original, output_dir, metadata):
     new_filename = "%s (%s)%s" % (
         metadata['title'], metadata['isbn'], extension)
     new_filename = os.path.join(output_dir, new_filename)
+    valid_chars = '-_.() abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    new_filename = os.path.join(output_dir, ''.join(
+        c for c in new_filename if c in valid_chars))
     shutil.copy(original, new_filename)
-    
     return new_filename
 
 
