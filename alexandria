@@ -11,6 +11,7 @@ import itertools
 import subprocess
 import unicodedata
 import multiprocessing
+import time
 from _version import __version__
 
 try:
@@ -490,7 +491,9 @@ def rename_ebook(original, output_dir, metadata):
     extension = determine_format(original)
     new_filename = "%s (%s)%s" % (
         metadata['title'], metadata['isbn'], extension)
+    new_filename = os.path.join(output_dir, new_filename)
     shutil.copy(original, new_filename)
+    
     return new_filename
 
 
@@ -529,6 +532,7 @@ def upload(filename, config, trackers):
         shutil.copy(torrent.decode('utf-8'),
                     os.path.expanduser(config.get('global', 'torrent_dir')))
         print("done!")
+        time.sleep(10)
 
 
 def main():
