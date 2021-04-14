@@ -193,11 +193,6 @@ class Bibliotik(Tracker):
 
     def has_book(self, metadata):
         isbn = metadata['isbn']
-        try:
-            # use bibliotik's isbn canonicalization
-            isbn = self.fetch_metadata(isbn)['isbn']
-        except:
-            pass
         params = {'search': '@isbn %s' % isbn}
         r = self.session.get('https://bibliotik.me/torrents/', params=params)
         return 'No torrents found.' not in r.text
