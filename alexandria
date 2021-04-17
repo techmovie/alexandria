@@ -124,7 +124,60 @@ class Tracker(object):
         self.session.verify = True  # False for self-signed SSL certificates
         self.login(username, password)
 
+class Bb(Tracker):
+    name = "Bb"
+    formats = {
+        '.pdf': 'PDF',
+        '.mobi': 'MOBI',
+        '.epub': 'EPUB',
+        '.djvu': 'DJVU',
+    }
+    languages = {
+        'eng': 'English',
+        'deu': 'German',
+        'fra': 'French',
+        'spa': 'Spanish',
+        'ita': 'Italian',
+        'jap': 'Japanese',
+        'swe': 'Swedish',
+        'rus': 'Russian',
+        'zho': 'Chinese'
+     }
+    def login(self, username, password):
+        params = {'username': username, 'password': password, 'login': 'Log In!'}
+        self.session.post('https://baconbits.org/login.php', params)
 
+        r = self.session.get('https://baconbits.org/upload.php')
+        doc = lxml.html.fromstring(r.text)
+        self.announce = doc.xpath('//*[@id="content"]/div[2]/p/input')[0].attrib['value']
+
+    def upload(self, filename, torrent, metadata):
+        files = {'file_input': open(torrent, 'rb')}
+        isbn = metadata['isbn']
+        data = {
+            'book_isbn': isbn,
+            'book_format': self.formats[os.path.splitext(filename)[-1]],
+            'submit': 'true',
+            'type': 'E-Books',
+            'title': metadata['title'],
+            'tags': metadata['tags'] or 'non.fiction',
+            'book_author': metadata['authors'],
+            'book_publisher':  metadata['publisher'],
+            'book_language': self.languages[metadata['language']],
+            'book_year': metadata['year'],
+            'image': metadata['image'],
+            'desc': metadata['description'],
+        }
+
+        r = self.session.post(
+            'https://baconbits.org/upload.php', files=files, data=data)
+        return True
+
+    def has_book(self, metadata):
+        isbn = metadata['isbn']
+        params = {'action': 'advanced','book_isbn': isbn}
+        r = self.session.get('https://baconbits.org/torrents.php', params=params)
+        return 'No search results' not in r.text
 class Bibliotik(Tracker):
     name = "Bibliotik"
     formats = {
@@ -142,6 +195,7 @@ class Bibliotik(Tracker):
         'jap': '7',
         'swe': '8',
         'rus': '13',
+        'zho': '17'
     }
 
     def login(self, username, password):
@@ -385,7 +439,7 @@ def fetch_metadata(isbn, config):
             'description': description,
             'image': image_url,
         }
-    except Exception, err:
+    except Exception as err:
         print(err)
 
 
@@ -410,6 +464,10 @@ def parse_config(config_path):
         config.add_section('red')
         config.set('red', 'username', '')
         config.set('red', 'password', '')
+
+        config.add_section('bb')
+        config.set('bb', 'username', '')
+        config.set('bb', 'password', '')
 
         config.add_section('ptpimg')
         config.set('ptpimg', 'key', '')
@@ -542,7 +600,7 @@ def main():
     config = parse_config(args.config)
 
     trackers = []
-    for tracker in [Bibliotik, RED]:
+    for tracker in [Bibliotik, RED, Bb]:
         username = config.get(tracker.__name__.lower(), 'username')
         password = config.get(tracker.__name__.lower(), 'password')
         if username and password:
