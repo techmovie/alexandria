@@ -159,7 +159,7 @@ class Bb(Tracker):
         identifiers =  metadata['identifiers']
         tags = metadata['tags']
         tags+=',%s' % (metadata['authors'])
-        if 'fiction' and 'non.fiction' not in tags:
+        if ('fiction' and 'non.fiction') not in tags:
             tags += ',non.fiction'
         retailLink = ''
         if 'google' in identifiers:
