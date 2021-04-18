@@ -154,28 +154,40 @@ class Bb(Tracker):
     def upload(self, filename, torrent, metadata):
         files = {'file_input': open(torrent, 'rb')}
         isbn = metadata['isbn']
+        description = metadata['description']
+        publisher = metadata['publisher']
+        identifiers =  metadata['identifiers']
+        tags = metadata['tags']
+        tags+=',%s' % (metadata['authors'])
+        if 'fiction' and 'non.fiction' not in tags:
+            tags += ',non.fiction'
+        retailLink = ''
+        if 'google' in identifiers:
+            retailLink = 'http://books.google.com/books?id=%s' % (re.search('google:(\w+)', identifiers).group(1))
+        descr = 'ISBN:%s\n\nSynopsis:\n%s\n\nPublisher:%s\n%s' % (isbn, description,  publisher, retailLink)
+        
         data = {
             'book_isbn': isbn,
             'book_format': self.formats[os.path.splitext(filename)[-1]],
             'submit': 'true',
             'type': 'E-Books',
             'title': metadata['title'],
-            'tags': metadata['tags'] or 'non.fiction',
+            'tags': tags,
             'book_author': metadata['authors'],
-            'book_publisher':  metadata['publisher'],
+            'book_publisher':  publisher,
             'book_language': self.languages[metadata['language']],
             'book_year': metadata['year'],
             'image': metadata['image'],
-            'desc': metadata['description'],
+            'desc': descr,
         }
-
         r = self.session.post(
             'https://baconbits.org/upload.php', files=files, data=data)
         return True
 
-    def has_book(self, metadata):
+    def has_book(self, metadata,filename):
         isbn = metadata['isbn']
-        params = {'action': 'advanced','book_isbn': isbn}
+        format = self.formats[os.path.splitext(filename)[-1]],
+        params = {'action': 'advanced','book_isbn': isbn,'book_format': format}
         r = self.session.get('https://baconbits.org/torrents.php', params=params)
         return 'No search results' not in r.text
 class Bibliotik(Tracker):
@@ -438,6 +450,7 @@ def fetch_metadata(isbn, config):
             'isbn': re.search('isbn:(\d+)', result['identifiers']).group(1),
             'description': description,
             'image': image_url,
+            'identifiers': result['identifiers']
         }
     except Exception as err:
         print(err)
@@ -568,7 +581,7 @@ def upload(filename, config, trackers):
         config.get('global', 'data_dir')), metadata)
 
     for i, tracker in enumerate(trackers):
-        if tracker.has_book(metadata):
+        if tracker.has_book(metadata,filename):
             print("%s already has it.\n" % tracker.name)
             continue
 
@@ -586,7 +599,7 @@ def upload(filename, config, trackers):
         shutil.copy(torrent.decode('utf-8'),
                     os.path.expanduser(config.get('global', 'torrent_dir')))
         print("done!")
-        time.sleep(20)
+        time.sleep(5)
 
 
 def main():
