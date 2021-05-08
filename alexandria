@@ -257,7 +257,7 @@ class Bibliotik(Tracker):
             return data
         return None
 
-    def has_book(self, metadata):
+    def has_book(self, metadata,filename):
         isbn = metadata['isbn']
         params = {'search': '@isbn %s' % isbn}
         r = self.session.get('https://bibliotik.me/torrents/', params=params)
@@ -295,7 +295,7 @@ class RED(Tracker):
             'https://redacted.ch/upload.php', files=files, data=data)
         return True
 
-    def has_book(self, metadata):
+    def has_book(self, metadata,filename):
         params = {'searchstr': metadata['title'], 'filter_cat[3]': 1}
         r = self.session.get('https://redacted.ch/torrents.php', params=params)
         return 'Your search did not match anything.' not in r.text
