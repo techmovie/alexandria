@@ -1,2 +1,3 @@
-requests>=1.0
+requests
 lxml>=3.1beta1
+poppler-utils

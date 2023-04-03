@@ -363,9 +363,7 @@ def determine_format(filename):
     extension = os.path.splitext(filename)[-1].lower()
     if extension in ['.epub', '.mobi', '.pdf', '.djvu']:
         return extension
-
-    mimetype = subprocess.check_output(
-        ['file', '-b', '-i', filename]).split(';')[0]
+    mimetype = subprocess.check_output(['file', '-b', '-i', filename]).split(';')[0]
     try:
         return MIMETYPES[mimetype]
     except Exception as e:
@@ -457,7 +455,7 @@ def fetch_metadata(isbn, config):
 
 
 def parse_config(config_path):
-    config = ConfigParser.SafeConfigParser()
+    config = ConfigParser.ConfigParser()
 
     if os.path.isfile(config_path):
         config.read(config_path)
