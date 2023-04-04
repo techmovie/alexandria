@@ -417,7 +417,7 @@ def upload_image(filename, config):
 
 def ptpimg_upload(filename, key):
     with open(filename, 'rb') as f:
-        files = [('file-upload[0]', (filename.decode('utf8'), f, 'image/jpg'))]
+        files = [('file-upload[0]', (filename, f, 'image/jpg'))]
         data = {'type': 'uploadv3', 'api_key': key}
         r = requests.post("https://ptpimg.me/upload.php",
                           data=data, files=files)
