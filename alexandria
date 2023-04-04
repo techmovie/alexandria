@@ -32,7 +32,7 @@ import mobi
 HEADERS = {
     'Connection': 'keep-alive',
     'Cache-Control': 'max-age=0',
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36',
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9'
     ',*/*;q=0.8',
     'Accept-Encoding': 'gzip,deflate,sdch',
@@ -279,8 +279,7 @@ class RED(Tracker):
             '//*[@id="content"]/div[2]/p/input')[0].attrib['value']
 
     def upload(self, filename, torrent, metadata):
-        files = {'file_input': (torrent.decode(
-            'utf-8'), open(torrent, 'rb'), "application/x-bittorent")}
+        files = {'file_input': (torrent, open(torrent, 'rb'), "application/x-bittorent")}
         data = {
             'submit': 'true',
             'auth': self.authkey,
@@ -363,7 +362,7 @@ def determine_format(filename):
     extension = os.path.splitext(filename)[-1].lower()
     if extension in ['.epub', '.mobi', '.pdf', '.djvu']:
         return extension
-    mimetype = subprocess.check_output(['file', '-b', '-i', filename]).split(';')[0]
+    mimetype = subprocess.check_output(['file', '-b', '-i', filename]).decode('utf-8').split(';')
     try:
         return MIMETYPES[mimetype]
     except Exception as e:
@@ -371,12 +370,11 @@ def determine_format(filename):
 
 
 def create_tempfile(suffix):
-    return subprocess.check_output(['mktemp','-u', 'mytemp.XXXXXXX']).strip()+suffix
+    return subprocess.check_output(['mktemp','-u', 'mytemp.XXXXXXX']).decode('utf-8').strip()+suffix
 
 
 def make_torrent(filename, announce, tracker_name, piece_size=16):
     torrent = create_tempfile('.torrent')
-    print(filename)
     if tracker_name == RED.name:
         command = ['transmission-create', '-p', '-t',
                    announce, '-s', str(piece_size), '-o', torrent, filename]
@@ -500,7 +498,7 @@ def extract_isbn(filename):
     data_format = determine_format(filename)
     if data_format == '.pdf':
         command = ['pdftotext', '-f', '1', '-l', '10', filename, '-']
-        text = subprocess.check_output(command, stderr=subprocess.PIPE)
+        text = subprocess.check_output(command, stderr=subprocess.PIPE).decode('utf-8')
         return isbn(text)
     elif data_format == '.mobi':
         b = mobi.Book(filename)
@@ -515,7 +513,7 @@ def extract_isbn(filename):
         return isbn(identifier)
     elif data_format == '.djvu':
         command = ['djvused', filename, '-e', 'print-pure-txt']
-        text = subprocess.check_output(command, stderr=subprocess.PIPE)
+        text = subprocess.check_output(command, stderr=subprocess.PIPE).decode('utf-8')
         return isbn(text)
 
     return None
@@ -594,7 +592,7 @@ def upload(filename, config, trackers):
             print("failed!")
             continue
 
-        shutil.copy(torrent.decode('utf-8'),
+        shutil.copy(torrent,
                     os.path.expanduser(config.get('global', 'torrent_dir')))
         print("done!")
         time.sleep(5)
@@ -622,7 +620,11 @@ def main():
                             for book_dir in args.book_dirs))
 
     for filename in books:
-        upload(filename, config, trackers)
+        try:
+            upload(filename, config, trackers)
+        except Exception as e:
+            print("Error uploading %s: %s" % (filename, e))
+        
 
 
 if __name__ == '__main__':
