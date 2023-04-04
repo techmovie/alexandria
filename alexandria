@@ -434,6 +434,17 @@ def fetch_metadata(isbn, config):
         parsed = re.findall(
             '([^\s]+)\s+?:\s([\s\S]+?)(?=(?:\n[ATPLRPIC])|$)', output)
         result = {re.sub('\W', '', key).lower(): value for key, value in parsed}
+        if not result['cover'] or result['cover'] == 'None':
+            try:
+                book_id = re.search('google:(.+),', result['identifiers']).group(1)
+                if book_id:
+                    cover_url = f'https://books.google.com/books?id={book_id}&printsec=frontcover&img=1'  
+                else: 
+                    cover_url = f'https://covers.openlibrary.org/b/isbn/{isbn}-M.jpg'
+                with open(cover, 'wb') as f:
+                    f.write(requests.get(cover_url).content)
+            except Exception as err:
+                print(f'Failed to get the book cover: {err}')
         image_url = upload_image(cover, config)
         description = html_to_bbcode(result['comments'])
         return {
